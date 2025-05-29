@@ -22,6 +22,9 @@ class StockServiceTest {
     private StockService StockService;
 
     @Autowired
+    private PessimisticLockStockService pessimisticLockStockService;
+
+    @Autowired
     private StockRepository stockRepository;
 
     @BeforeEach
@@ -54,6 +57,29 @@ class StockServiceTest {
             executorService.submit(() -> {
                 try { // 예외가 발생할 수 있음
                     StockService.decrease(1L, 1L);
+                } finally { // 예외 발생해도 무조건 실행
+                    latch.countDown(); // 이 스레드 작업 끝 -> 카운트 감소
+                }
+            });
+        }
+
+        latch.await(); // 100개 모두 끝날 때까지 기다림
+
+        Stock stock = stockRepository.findById(1L).orElseThrow();
+        // 100 - ( 1 * 100 ) = 0
+        assertEquals(0,stock.getQuantity());
+    }
+
+    @Test
+    public void 동시에_100개의_요청_비관락() throws InterruptedException {
+        int threadCount = 100;
+        ExecutorService executorService = Executors.newFixedThreadPool(32); // 멀티 스레드 환경 구현
+        CountDownLatch latch = new CountDownLatch(threadCount); //총 100개 요청
+
+        for (int i = 0; i < threadCount; i++) {
+            executorService.submit(() -> {
+                try { // 예외가 발생할 수 있음
+                    pessimisticLockStockService.decrease(1L, 1L);
                 } finally { // 예외 발생해도 무조건 실행
                     latch.countDown(); // 이 스레드 작업 끝 -> 카운트 감소
                 }
