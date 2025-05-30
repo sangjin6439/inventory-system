@@ -17,12 +17,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @SpringBootTest
-class NamedLockStockFacadeTest {
-    @Autowired
-    private StockService stockService;
+class LettuceLockStockFacadeTest {
 
     @Autowired
-    private NamedLockStockFacade namedLockStockFacade;
+    private LettuceLockStockFacade lettuceLockStockFacade;
 
     @Autowired
     private StockRepository stockRepository;
@@ -38,7 +36,7 @@ class NamedLockStockFacadeTest {
     }
 
     @Test
-    public void 동시에_100개의_요청_네임드락() throws InterruptedException {
+    public void 동시에_100개의_요청_레투스락() throws InterruptedException {
         int threadCount = 100;
         ExecutorService executorService = Executors.newFixedThreadPool(32);
         CountDownLatch latch = new CountDownLatch(threadCount);
@@ -46,7 +44,9 @@ class NamedLockStockFacadeTest {
         for (int i = 0; i < threadCount; i++) {
             executorService.submit(() -> {
                 try {
-                    namedLockStockFacade.decrease(1L, 1L);
+                    lettuceLockStockFacade.decrease(1L, 1L);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 } finally {
                     latch.countDown();
                 }
@@ -56,7 +56,6 @@ class NamedLockStockFacadeTest {
         latch.await();
 
         Stock stock = stockRepository.findById(1L).orElseThrow();
-        // 100 - ( 1 * 100 ) = 0
         assertEquals(0, stock.getQuantity());
     }
 }
